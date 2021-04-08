@@ -25,13 +25,13 @@ public:
             HR_CLOCK    // currently same as wall clock
         };
 
-        uint32_t run_time_ = 10;
+        uint32_t run_time_ = 1;
         uint64_t period_ms_ = 1000;
         bool start_now_ = false;
         TimerType clock_type_ = TimerType::STEADY_CLOCK;
 
         Config(
-                uint32_t run_time = 10,
+                uint32_t run_time = 1,
                 uint64_t period_ms = 1000,
                 bool start_now = false,
                 TimerType clock_type = TimerType::STEADY_CLOCK) :
@@ -48,6 +48,41 @@ public:
             if (object_) {
                 (((Object *) object_)->*func)(args...);
             }
+        };
+
+        sigev_.sigev_value.sival_ptr = (void *) this;
+        sigev_.sigev_notify = SIGEV_THREAD;
+        sigev_.sigev_notify_function = &CPPTimer::timer_func_exec;
+
+        auto timer_type = CLOCK_MONOTONIC;
+        switch (config.clock_type_) {
+            case Config::TimerType::WALL_CLOCK:
+                timer_type = CLOCK_REALTIME;
+                break;
+            case Config::TimerType::STEADY_CLOCK:
+                timer_type = CLOCK_MONOTONIC;
+                break;
+            case Config::TimerType::HR_CLOCK:
+                break;
+        }
+
+        if (timer_create(timer_type, &sigev_, &timer_id_) != 0) {
+            std::cout << strerror(errno) << std::endl;
+            return;
+        }
+
+        if (config.start_now_) {
+            start();
+        }
+    }
+
+    template<typename Res, typename ... Args>
+    CPPTimer(Res (*func )(Args ...),
+             const Config &config, Args ...args):
+            curr_time_(0), config_(config), object_(nullptr) {
+
+        func_wrapper_ = [this, args..., func](sigval v) {
+            (*func)(args...);
         };
 
         sigev_.sigev_value.sival_ptr = (void *) this;
@@ -110,7 +145,7 @@ private:
 
     static void timer_func_exec(sigval v) {
         auto object_ptr = (CPPTimer *) v.sival_ptr;
-        if(object_ptr){
+        if (object_ptr) {
             object_ptr->check_and_run(v);
         }
     }

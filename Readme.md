@@ -1,8 +1,12 @@
-#include <iostream>
-#include <mutex>
-#include <zconf.h>
-#include "CPPTimer.h"
+# CPPTimer
+A simple header only c++ timer using linux timer_create and timer_settime.
 
+## Features
+* [x]  Support class-member and non-class-member function call.
+* [x]  Support steady clock and wall clock time counting.
+* [x]  Support run time, waitting time cycle.
+
+```cpp
 using namespace std;
 
 static mutex os_mutex;
@@ -54,3 +58,5 @@ int main() {
 }
 
 #pragma clang diagnostic pop
+
+```
